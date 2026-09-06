@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kaiphpdev\WorkerWatch\Contracts;
 
-use Kaiphpdev\WarkerWatch\WorkerSnapshot;
+use Kaiphpdev\WorkerWatch\WorkerSnapshot;
 
 interface WorkerStore
 {
