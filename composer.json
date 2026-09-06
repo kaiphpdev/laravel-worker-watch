@@ -1,0 +1,64 @@
+{
+    "name": "kaiphpdev/laravel-worker-watch",
+    "description": "Production-ready Laravel queue worker health monitoring, heartbeat tracking, stalled-job detection and worker recovery monitoring.",
+    "keywords": [
+        "laravel",
+        "queue",
+        "worker",
+        "monitoring",
+        "health-check",
+        "heartbeat",
+        "redis",
+        "queue-worker"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Kuldeep"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/cache": "^11.0|^12.0",
+        "illuminate/console": "^11.0|^12.0",
+        "illuminate/contracts": "^11.0|^12.0",
+        "illuminate/events": "^11.0|^12.0",
+        "illuminate/queue": "^11.0|^12.0",
+        "illuminate/support": "^11.0|^12.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^10.5|^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kaiphpdev\\WorkerWatch\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kaiphpdev\\WorkerWatch\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Kaiphpdev\\WorkerWatch\\WorkerWatchServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "format": "pint",
+        "format-check": "pint --test"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
