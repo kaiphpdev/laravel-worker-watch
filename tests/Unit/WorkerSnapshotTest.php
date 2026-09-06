@@ -75,4 +75,64 @@ final class WorkerSnapshotTest extends TestCase
             jobsFailed: 0,
         );
     }
+
+    public function test_it_calculates_total_completed_jobs(): void
+    {
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1000,
+            jobsProcessed: 90,
+            jobsFailed: 10,
+        );
+
+        $this->assertSame(
+            100,
+            $worker->totalCompletedJobs(),
+        );
+    }
+
+    public function test_it_calculates_failure_rate(): void
+    {
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1000,
+            jobsProcessed: 90,
+            jobsFailed: 10,
+        );
+
+        $this->assertSame(
+            10.0,
+            $worker->failureRate(),
+        );
+    }
+
+    public function test_failure_rate_is_zero_when_no_jobs_have_completed(): void
+    {
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1000,
+            jobsProcessed: 0,
+            jobsFailed: 0,
+        );
+
+        $this->assertSame(
+            0.0,
+            $worker->failureRate(),
+        );
+    }
 }

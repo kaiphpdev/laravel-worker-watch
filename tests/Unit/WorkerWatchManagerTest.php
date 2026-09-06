@@ -605,4 +605,152 @@ final class WorkerWatchManagerTest extends TestCase
             $capacity->isSatisfied()
         );
     }
+
+    public function test_worker_is_degraded_when_failure_rate_is_high(): void
+    {
+        config()->set('worker-watch.failure_rate.enabled', true);
+
+        config()->set('worker-watch.failure_rate.minimum_jobs', 20);
+
+        config()->set('worker-watch.failure_rate.degraded_at', 10);
+
+        config()->set('worker-watch.failure_rate.critical_at', 25);
+
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1990,
+            jobsProcessed: 85,
+            jobsFailed: 15,
+        );
+
+        $this->store->put($worker);
+
+        $evaluated = $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 2000,
+        );
+
+        $this->assertSame(
+            WorkerStatus::Degraded,
+            $evaluated->status,
+        );
+    }
+
+    public function test_worker_is_critical_when_failure_rate_is_very_high(): void
+    {
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1990,
+            jobsProcessed: 70,
+            jobsFailed: 30,
+        );
+
+        $this->store->put($worker);
+
+        $evaluated = $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 2000,
+        );
+
+        $this->assertSame(
+            WorkerStatus::Critical,
+            $evaluated->status,
+        );
+    }
+
+    public function test_failure_rate_is_ignored_until_minimum_sample_is_reached(): void
+    {
+        config()->set(
+            'worker-watch.failure_rate.minimum_jobs',
+            20,
+        );
+
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1990,
+            jobsProcessed: 1,
+            jobsFailed: 9,
+        );
+
+        $this->store->put($worker);
+
+        $evaluated = $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 2000,
+        );
+
+        $this->assertSame(
+            WorkerStatus::Healthy,
+            $evaluated->status,
+        );
+    }
+
+    public function test_failure_rate_degraded_threshold_is_inclusive(): void
+    {
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1990,
+            jobsProcessed: 90,
+            jobsFailed: 10,
+        );
+
+        $this->store->put($worker);
+
+        $evaluated = $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 2000,
+        );
+
+        $this->assertSame(
+            WorkerStatus::Degraded,
+            $evaluated->status,
+        );
+    }
+
+    public function test_failure_rate_critical_threshold_is_inclusive(): void
+    {
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1990,
+            jobsProcessed: 75,
+            jobsFailed: 25,
+        );
+
+        $this->store->put($worker);
+
+        $evaluated = $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 2000,
+        );
+
+        $this->assertSame(
+            WorkerStatus::Critical,
+            $evaluated->status,
+        );
+    }
 }

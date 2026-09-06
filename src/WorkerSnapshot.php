@@ -60,6 +60,25 @@ final readonly class WorkerSnapshot
             'job_started_at' => $this->jobStartedAt,
             'jobs_processed' => $this->jobsProcessed,
             'jobs_failed' => $this->jobsFailed,
+            'jobs_total' => $this->totalCompletedJobs(),
+            'failure_rate' => $this->failureRate(),
         ];
+    }
+
+    public function totalCompletedJobs(): int
+    {
+        return ($this->jobsProcessed ?? 0)
+            + ($this->jobsFailed ?? 0);
+    }
+
+    public function failureRate(): float
+    {
+        $total = $this->totalCompletedJobs();
+
+        if ($total === 0) {
+            return 0.0;
+        }
+
+        return (($this->jobsFailed ?? 0) / $total) * 100;
     }
 }

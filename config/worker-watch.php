@@ -94,4 +94,65 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Failure Rate Monitoring
+    |--------------------------------------------------------------------------
+    |
+    | Mark a worker degraded or critical when too many jobs fail.
+    |
+    | Example:
+    |
+    | 10 processed, 5 failed = 33.33% failure rate
+    |
+    */
+
+    'failure_rate' => [
+
+        'enabled' => env(
+            'WORKER_WATCH_FAILURE_RATE_ENABLED',
+            true
+        ),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Minimum Sample Size
+        |--------------------------------------------------------------------------
+        |
+        | Do not evaluate failure rate until enough jobs have completed.
+        |
+        */
+
+        'minimum_jobs' => (int) env(
+            'WORKER_WATCH_FAILURE_MINIMUM_JOBS',
+            20
+        ),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Degraded Threshold
+        |--------------------------------------------------------------------------
+        |
+        | Percentage of failed jobs that marks the worker degraded.
+        |
+        */
+
+        'degraded_at' => (float) env(
+            'WORKER_WATCH_FAILURE_DEGRADED_AT',
+            10
+        ),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Critical Threshold
+        |--------------------------------------------------------------------------
+        */
+
+        'critical_at' => (float) env(
+            'WORKER_WATCH_FAILURE_CRITICAL_AT',
+            25
+        ),
+
+    ],
+
 ];
