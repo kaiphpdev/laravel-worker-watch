@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Kaiphpdev\WorkerWatch;
 
+use Illuminate\Contracts\Events\Dispatcher;
 use Kaiphpdev\WorkerWatch\Contracts\WorkerStore;
 use Kaiphpdev\WorkerWatch\Enums\WorkerStatus;
+use Kaiphpdev\WorkerWatch\Events\WorkerBecameUnhealthy;
+use Kaiphpdev\WorkerWatch\Events\WorkerRecovered;
 use Kaiphpdev\WorkerWatch\Support\WorkerIdentity;
 
 final class WorkerWatchManager
 {
     public function __construct(
         private readonly WorkerStore $store,
+        private readonly Dispatcher $events,
     ) {}
 
     public function workerStarted(
@@ -55,13 +59,12 @@ final class WorkerWatchManager
 
         $updated = $this->copy(
             worker: $worker,
-            status: WorkerStatus::Healthy,
             lastHeartbeatAt: time(),
         );
 
         $this->store->put($updated);
 
-        return $updated;
+        return $this->evaluateHealth($updated);
     }
 
     public function jobStarted(
@@ -164,21 +167,28 @@ final class WorkerWatchManager
     ): WorkerSnapshot {
         $now ??= time();
 
-        $status = $this->determineStatus(
+        $previousStatus = $worker->status;
+
+        $newStatus = $this->determineStatus(
             worker: $worker,
             now: $now,
         );
 
-        if ($status === $worker->status) {
+        if ($newStatus === $previousStatus) {
             return $worker;
         }
 
         $updated = $this->copy(
             worker: $worker,
-            status: $status,
+            status: $newStatus,
         );
 
         $this->store->put($updated);
+
+        $this->dispatchStatusTransition(
+            previousStatus: $previousStatus,
+            worker: $updated,
+        );
 
         return $updated;
     }
@@ -260,5 +270,28 @@ final class WorkerWatchManager
             jobsProcessed: $jobsProcessed ?? $worker->jobsProcessed,
             jobsFailed: $jobsFailed ?? $worker->jobsFailed,
         );
+    }
+
+    private function dispatchStatusTransition(
+        WorkerStatus $previousStatus,
+        WorkerSnapshot $worker,
+    ): void {
+        $wasHealthy = $previousStatus === WorkerStatus::Healthy;
+
+        $isHealthy = $worker->status === WorkerStatus::Healthy;
+
+        if ($wasHealthy && ! $isHealthy) {
+            $this->events->dispatch(
+                new WorkerBecameUnhealthy($worker)
+            );
+
+            return;
+        }
+
+        if (! $wasHealthy && $isHealthy) {
+            $this->events->dispatch(
+                new WorkerRecovered($worker)
+            );
+        }
     }
 }

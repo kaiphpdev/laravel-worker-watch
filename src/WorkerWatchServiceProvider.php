@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kaiphpdev\WorkerWatch;
 
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -52,6 +53,9 @@ final class WorkerWatchServiceProvider extends ServiceProvider
             WorkerWatchManager::class,
             fn ($app): WorkerWatchManager => new WorkerWatchManager(
                 store: $app->make(WorkerStore::class),
+                events: $app->make(
+                    Dispatcher::class
+                ),
             )
         );
 

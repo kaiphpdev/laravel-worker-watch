@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Kaiphpdev\WorkerWatch\Tests\Unit;
 
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\Facades\Event;
 use Kaiphpdev\WorkerWatch\Enums\WorkerStatus;
+use Kaiphpdev\WorkerWatch\Events\WorkerBecameUnhealthy;
+use Kaiphpdev\WorkerWatch\Events\WorkerRecovered;
 use Kaiphpdev\WorkerWatch\Tests\Fakes\FakeWorkerStore;
 use Kaiphpdev\WorkerWatch\Tests\TestCase;
 use Kaiphpdev\WorkerWatch\WorkerSnapshot;
@@ -24,6 +28,7 @@ final class WorkerWatchManagerTest extends TestCase
 
         $this->manager = new WorkerWatchManager(
             store: $this->store,
+            events: $this->app->make(Dispatcher::class),
         );
     }
 
@@ -370,6 +375,106 @@ final class WorkerWatchManagerTest extends TestCase
             jobStartedAt: $jobStartedAt,
             jobsProcessed: 0,
             jobsFailed: 0,
+        );
+    }
+
+    public function test_it_dispatches_event_when_worker_becomes_unhealthy(): void
+    {
+        Event::fake([
+            WorkerBecameUnhealthy::class,
+        ]);
+
+        $this->recreateManager();
+
+        $worker = $this->snapshot(
+            lastHeartbeatAt: 1000,
+        );
+
+        $this->store->put($worker);
+
+        $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 1060,
+        );
+
+        Event::assertDispatched(
+            WorkerBecameUnhealthy::class,
+            function (WorkerBecameUnhealthy $event): bool {
+                return $event->worker->status === WorkerStatus::Stale;
+            }
+        );
+    }
+
+    public function test_it_does_not_repeat_unhealthy_event_for_unhealthy_transition(): void
+    {
+        Event::fake([
+            WorkerBecameUnhealthy::class,
+        ]);
+
+        $this->recreateManager();
+
+        $worker = $this->snapshot(
+            lastHeartbeatAt: 1000,
+        );
+
+        $this->store->put($worker);
+
+        $stale = $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 1060,
+        );
+
+        $this->manager->evaluateHealth(
+            worker: $stale,
+            now: 1180,
+        );
+
+        Event::assertDispatchedTimes(
+            WorkerBecameUnhealthy::class,
+            1,
+        );
+    }
+
+    public function test_it_dispatches_recovery_event_when_worker_becomes_healthy_again(): void
+    {
+        Event::fake([
+            WorkerRecovered::class,
+        ]);
+
+        $this->recreateManager();
+
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Stale,
+            lastHeartbeatAt: 1190,
+            jobsProcessed: 0,
+            jobsFailed: 0,
+        );
+
+        $this->store->put($worker);
+
+        $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 1200,
+        );
+
+        Event::assertDispatched(
+            WorkerRecovered::class,
+            function (WorkerRecovered $event): bool {
+                return $event->worker->status === WorkerStatus::Healthy;
+            }
+        );
+    }
+
+    private function recreateManager(): void
+    {
+        $this->manager = new WorkerWatchManager(
+            store: $this->store,
+            events: $this->app->make(Dispatcher::class),
         );
     }
 }
