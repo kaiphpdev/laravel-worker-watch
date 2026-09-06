@@ -1,8 +1,8 @@
 <?php
 
-declare(strict_type=1);
+declare(strict_types=1);
 
-namespace Kaiphpdev\WorkerWatch\Enums;
+namespace Kaiphpdev\WorkerWatch\Support;
 
 final class WorkerIdentity
 {

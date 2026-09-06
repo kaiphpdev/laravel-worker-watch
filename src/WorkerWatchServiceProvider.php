@@ -39,6 +39,14 @@ final class WorkerWatchServiceProvider extends ServiceProvider
                 );
             }
         );
+
+        $this->app->singleton(
+            WorkerWatchManager::class,
+            fn ($app): WorkerWatchManager => new WorkerWatchManager(
+                store: $app->make(WorkerStore::class),
+            )
+        );
+
     }
 
     public function boot(): void
