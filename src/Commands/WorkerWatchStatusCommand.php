@@ -6,6 +6,7 @@ namespace Kaiphpdev\WorkerWatch\Commands;
 
 use Illuminate\Console\Command;
 use Kaiphpdev\WorkerWatch\Enums\WorkerStatus;
+use Kaiphpdev\WorkerWatch\WorkerCapacity;
 use Kaiphpdev\WorkerWatch\WorkerSnapshot;
 use Kaiphpdev\WorkerWatch\WorkerWatchManager;
 
@@ -74,8 +75,46 @@ final class WorkerWatchStatusCommand extends Command
         );
 
         $this->displaySummary($workers);
+        $this->displayCapacity();
 
         return $this->exitCode($workers);
+    }
+
+    private function displayCapacity(): void
+    {
+        $capacities = $this->manager->capacities();
+
+        if ($capacities === []) {
+            return;
+        }
+
+        $this->newLine();
+
+        $this->line('Expected Worker Capacity');
+
+        $this->table(
+            [
+                'Connection',
+                'Queue',
+                'Expected',
+                'Actual',
+                'Missing',
+                'Status',
+            ],
+            array_map(
+                static fn (WorkerCapacity $capacity): array => [
+                    $capacity->connection,
+                    $capacity->queue,
+                    $capacity->expected,
+                    $capacity->actual,
+                    $capacity->missing(),
+                    $capacity->isSatisfied()
+                        ? 'OK'
+                        : 'MISSING',
+                ],
+                $capacities,
+            ),
+        );
     }
 
     /**
@@ -129,9 +168,18 @@ final class WorkerWatchStatusCommand extends Command
      */
     private function outputJson(array $workers): void
     {
+        $capacities = $this->manager->capacities();
+
         $payload = [
             'healthy' => $this->exitCode($workers) === self::SUCCESS,
+
             'summary' => $this->summary($workers),
+
+            'capacity' => array_map(
+                static fn (WorkerCapacity $capacity): array => $capacity->toArray(),
+                $capacities,
+            ),
+
             'workers' => array_map(
                 fn (WorkerSnapshot $worker): array => [
                     ...$worker->toArray(),
@@ -215,6 +263,10 @@ final class WorkerWatchStatusCommand extends Command
             if ($worker->status !== WorkerStatus::Healthy) {
                 return self::FAILURE;
             }
+        }
+
+        if ($this->manager->hasCapacityFailure()) {
+            return self::FAILURE;
         }
 
         return self::SUCCESS;

@@ -76,4 +76,22 @@ return [
         3600
     ),
 
+    'capacity' => [
+
+        'enabled' => env(
+            'WORKER_WATCH_CAPACITY_ENABLED',
+            true
+        ),
+
+        'expected' => [
+
+            'redis:default' => (int) env(
+                'WORKER_WATCH_DEFAULT_WORKERS',
+                1
+            ),
+
+        ],
+
+    ],
+
 ];

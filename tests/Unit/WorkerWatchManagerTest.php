@@ -477,4 +477,132 @@ final class WorkerWatchManagerTest extends TestCase
             events: $this->app->make(Dispatcher::class),
         );
     }
+
+    public function test_it_detects_missing_worker_capacity(): void
+    {
+        config()->set(
+            'worker-watch.capacity.enabled',
+            true,
+        );
+
+        config()->set(
+            'worker-watch.capacity.expected',
+            [
+                'redis:default' => 3,
+            ],
+        );
+
+        $this->store->put(
+            $this->snapshot(
+                lastHeartbeatAt: time(),
+            )
+        );
+
+        $this->store->put(
+            new WorkerSnapshot(
+                id: 'server:2:redis:default',
+                hostname: 'server',
+                processId: 2,
+                connection: 'redis',
+                queue: 'default',
+                status: WorkerStatus::Healthy,
+                lastHeartbeatAt: time(),
+                jobsProcessed: 0,
+                jobsFailed: 0,
+            )
+        );
+
+        $capacities = $this->manager->capacities();
+
+        $this->assertCount(1, $capacities);
+
+        $this->assertSame(
+            3,
+            $capacities[0]->expected,
+        );
+
+        $this->assertSame(
+            2,
+            $capacities[0]->actual,
+        );
+
+        $this->assertSame(
+            1,
+            $capacities[0]->missing(),
+        );
+
+        $this->assertFalse(
+            $capacities[0]->isSatisfied()
+        );
+
+        $this->assertTrue(
+            $this->manager->hasCapacityFailure()
+        );
+    }
+
+    public function test_worker_capacity_passes_when_expected_count_is_met(): void
+    {
+        config()->set(
+            'worker-watch.capacity.expected',
+            [
+                'redis:default' => 1,
+            ],
+        );
+
+        $this->store->put(
+            $this->snapshot(
+                lastHeartbeatAt: time(),
+            )
+        );
+
+        $capacity = $this->manager->capacities()[0];
+
+        $this->assertTrue(
+            $capacity->isSatisfied()
+        );
+
+        $this->assertSame(
+            0,
+            $capacity->missing(),
+        );
+
+        $this->assertFalse(
+            $this->manager->hasCapacityFailure()
+        );
+    }
+
+    public function test_critical_workers_do_not_satisfy_capacity(): void
+    {
+        config()->set(
+            'worker-watch.capacity.expected',
+            [
+                'redis:default' => 1,
+            ],
+        );
+
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Critical,
+            lastHeartbeatAt: time() - 500,
+            jobsProcessed: 0,
+            jobsFailed: 0,
+        );
+
+        $this->store->put($worker);
+
+        $capacity = $this->manager->capacities()[0];
+
+        $this->assertSame(
+            0,
+            $capacity->actual,
+        );
+
+        $this->assertFalse(
+            $capacity->isSatisfied()
+        );
+    }
 }

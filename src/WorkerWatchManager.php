@@ -294,4 +294,95 @@ final class WorkerWatchManager
             );
         }
     }
+
+    /**
+     * @return array<int, WorkerCapacity>
+     */
+    public function capacities(): array
+    {
+        if (! (bool) config(
+            'worker-watch.capacity.enabled',
+            true,
+        )) {
+            return [];
+        }
+
+        $expected = config(
+            'worker-watch.capacity.expected',
+            [],
+        );
+
+        if (! is_array($expected)) {
+            return [];
+        }
+
+        $workers = $this->workers();
+
+        $capacities = [];
+
+        foreach ($expected as $key => $required) {
+            if (! is_string($key)) {
+                continue;
+            }
+
+            [$connection, $queue] = $this->parseCapacityKey(
+                $key
+            );
+
+            $actual = count(
+                array_filter(
+                    $workers,
+                    static fn (WorkerSnapshot $worker): bool => $worker->connection === $connection
+                        && $worker->queue === $queue
+                        && $worker->status !== WorkerStatus::Critical,
+                )
+            );
+
+            $capacities[] = new WorkerCapacity(
+                connection: $connection,
+                queue: $queue,
+                expected: max(0, (int) $required),
+                actual: $actual,
+            );
+        }
+
+        return $capacities;
+    }
+
+    public function hasCapacityFailure(): bool
+    {
+        foreach ($this->capacities() as $capacity) {
+            if (! $capacity->isSatisfied()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function parseCapacityKey(string $key): array
+    {
+        $parts = explode(':', $key, 2);
+
+        $connection = trim(
+            $parts[0] ?? ''
+        );
+
+        $queue = trim(
+            $parts[1] ?? ''
+        );
+
+        return [
+            $connection !== ''
+                ? $connection
+                : 'unknown',
+
+            $queue !== ''
+                ? $queue
+                : 'default',
+        ];
+    }
 }
