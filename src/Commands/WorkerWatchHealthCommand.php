@@ -38,7 +38,7 @@ final class WorkerWatchHealthCommand extends Command
                         'workers' => count($workers),
                         'capacity_satisfied' => ! $this->manager->hasCapacityFailure(),
                     ],
-                    JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+                    JSON_UNESCAPED_SLASHES,
                 ) ?: '{}'
             );
 

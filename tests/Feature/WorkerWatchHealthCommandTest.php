@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kaiphpdev\WorkerWatch\Tests\Feature;
 
+use Illuminate\Support\Facades\Artisan;
 use Kaiphpdev\WorkerWatch\Contracts\WorkerStore;
 use Kaiphpdev\WorkerWatch\Enums\WorkerStatus;
 use Kaiphpdev\WorkerWatch\Tests\Fakes\FakeWorkerStore;
 use Kaiphpdev\WorkerWatch\Tests\TestCase;
 use Kaiphpdev\WorkerWatch\WorkerSnapshot;
+use Kaiphpdev\WorkerWatch\WorkerWatchManager;
 
 final class WorkerWatchHealthCommandTest extends TestCase
 {
@@ -27,7 +29,7 @@ final class WorkerWatchHealthCommandTest extends TestCase
             false,
         );
 
-        $this->store = new FakeWorkerStore();
+        $this->store = new FakeWorkerStore;
 
         $this->app->forgetInstance(
             WorkerStore::class
@@ -44,7 +46,7 @@ final class WorkerWatchHealthCommandTest extends TestCase
          * to ensure it receives our fake WorkerStore.
          */
         $this->app->forgetInstance(
-            \Kaiphpdev\WorkerWatch\WorkerWatchManager::class
+            WorkerWatchManager::class
         );
     }
 
@@ -98,8 +100,18 @@ final class WorkerWatchHealthCommandTest extends TestCase
     public function test_health_command_fails_when_worker_is_degraded(): void
     {
         $this->store->put(
-            $this->worker(
-                status: WorkerStatus::Degraded,
+            new WorkerSnapshot(
+                id: 'server:1:redis:default',
+                hostname: 'server',
+                processId: 1,
+                connection: 'redis',
+                queue: 'default',
+                status: WorkerStatus::Healthy,
+                lastHeartbeatAt: time(),
+                currentJob: 'App\\Jobs\\LongRunningJob',
+                jobStartedAt: time() - 400,
+                jobsProcessed: 10,
+                jobsFailed: 0,
             )
         );
 
@@ -209,22 +221,43 @@ final class WorkerWatchHealthCommandTest extends TestCase
             $this->worker()
         );
 
-        $this->artisan(
+        $exitCode = Artisan::call(
             'worker-watch:health',
             [
                 '--json' => true,
             ],
-        )
-            ->expectsOutputToContain(
-                '"healthy": true'
-            )
-            ->expectsOutputToContain(
-                '"workers": 1'
-            )
-            ->expectsOutputToContain(
-                '"capacity_satisfied": true'
-            )
-            ->assertExitCode(0);
+        );
+
+        $output = trim(
+            Artisan::output()
+        );
+
+        $payload = json_decode(
+            $output,
+            true,
+        );
+
+        $this->assertSame(
+            0,
+            $exitCode,
+        );
+
+        $this->assertIsArray(
+            $payload,
+        );
+
+        $this->assertTrue(
+            $payload['healthy'],
+        );
+
+        $this->assertSame(
+            1,
+            $payload['workers'],
+        );
+
+        $this->assertTrue(
+            $payload['capacity_satisfied'],
+        );
     }
 
     public function test_json_output_reports_unhealthy_worker(): void
@@ -236,19 +269,43 @@ final class WorkerWatchHealthCommandTest extends TestCase
             )
         );
 
-        $this->artisan(
+        $exitCode = Artisan::call(
             'worker-watch:health',
             [
                 '--json' => true,
             ],
-        )
-            ->expectsOutputToContain(
-                '"healthy": false'
-            )
-            ->expectsOutputToContain(
-                '"workers": 1'
-            )
-            ->assertExitCode(1);
+        );
+
+        $output = trim(
+            Artisan::output()
+        );
+
+        $payload = json_decode(
+            $output,
+            true,
+        );
+
+        $this->assertSame(
+            1,
+            $exitCode,
+        );
+
+        $this->assertIsArray(
+            $payload,
+        );
+
+        $this->assertFalse(
+            $payload['healthy'],
+        );
+
+        $this->assertSame(
+            1,
+            $payload['workers'],
+        );
+
+        $this->assertTrue(
+            $payload['capacity_satisfied'],
+        );
     }
 
     public function test_health_command_fails_when_expected_capacity_is_not_met(): void
