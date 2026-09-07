@@ -6,6 +6,7 @@ namespace Kaiphpdev\WorkerWatch\Commands;
 
 use Illuminate\Console\Command;
 use Kaiphpdev\WorkerWatch\Enums\WorkerStatus;
+use Kaiphpdev\WorkerWatch\WorkerSnapshot;
 use Kaiphpdev\WorkerWatch\WorkerWatchManager;
 
 final class WorkerWatchHealthCommand extends Command
@@ -58,7 +59,7 @@ final class WorkerWatchHealthCommand extends Command
     }
 
     /**
-     * @return array<int, \Kaiphpdev\WorkerWatch\WorkerSnapshot>
+     * @return array<int, WorkerSnapshot>
      */
     private function filteredWorkers(): array
     {
@@ -95,7 +96,7 @@ final class WorkerWatchHealthCommand extends Command
     }
 
     /**
-     * @param array<int, \Kaiphpdev\WorkerWatch\WorkerSnapshot> $workers
+     * @param  array<int, WorkerSnapshot>  $workers
      */
     private function isHealthy(array $workers): bool
     {

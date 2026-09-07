@@ -14,19 +14,19 @@ use Illuminate\Queue\Events\WorkerStarting;
 use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Kaiphpdev\WorkerWatch\Commands\WorkerWatchHealthCommand;
 use Kaiphpdev\WorkerWatch\Commands\WorkerWatchPruneCommand;
 use Kaiphpdev\WorkerWatch\Commands\WorkerWatchStatusCommand;
 use Kaiphpdev\WorkerWatch\Contracts\WorkerStore;
 use Kaiphpdev\WorkerWatch\Listeners\QueueWorkerListener;
 use Kaiphpdev\WorkerWatch\Stores\CacheWorkerStore;
-use Kaiphpdev\WorkerWatch\Commands\WorkerWatchHealthCommand;
 
 final class WorkerWatchServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/worker-watch.php',
+            __DIR__.'/../config/worker-watch.php',
             'worker-watch'
         );
 
@@ -54,7 +54,7 @@ final class WorkerWatchServiceProvider extends ServiceProvider
 
         $this->app->singleton(
             WorkerWatchManager::class,
-            fn($app): WorkerWatchManager => new WorkerWatchManager(
+            fn ($app): WorkerWatchManager => new WorkerWatchManager(
                 store: $app->make(WorkerStore::class),
                 events: $app->make(
                     Dispatcher::class
@@ -64,7 +64,7 @@ final class WorkerWatchServiceProvider extends ServiceProvider
 
         $this->app->singleton(
             QueueWorkerListener::class,
-            fn($app): QueueWorkerListener => new QueueWorkerListener(
+            fn ($app): QueueWorkerListener => new QueueWorkerListener(
                 manager: $app->make(WorkerWatchManager::class),
             )
         );
@@ -110,7 +110,7 @@ final class WorkerWatchServiceProvider extends ServiceProvider
             ]);
 
             $this->publishes([
-                __DIR__ . '/../config/worker-watch.php' => config_path('worker-watch.php'),
+                __DIR__.'/../config/worker-watch.php' => config_path('worker-watch.php'),
             ], 'worker-watch-config');
         }
     }
