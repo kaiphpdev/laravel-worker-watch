@@ -543,6 +543,11 @@ final class WorkerWatchManagerTest extends TestCase
     public function test_worker_capacity_passes_when_expected_count_is_met(): void
     {
         config()->set(
+            'worker-watch.capacity.enabled',
+            true,
+        );
+
+        config()->set(
             'worker-watch.capacity.expected',
             [
                 'redis:default' => 1,
@@ -555,7 +560,14 @@ final class WorkerWatchManagerTest extends TestCase
             )
         );
 
-        $capacity = $this->manager->capacities()[0];
+        $capacities = $this->manager->capacities();
+
+        $this->assertCount(
+            1,
+            $capacities,
+        );
+
+        $capacity = $capacities[0];
 
         $this->assertTrue(
             $capacity->isSatisfied()
@@ -573,6 +585,11 @@ final class WorkerWatchManagerTest extends TestCase
 
     public function test_critical_workers_do_not_satisfy_capacity(): void
     {
+        config()->set(
+            'worker-watch.capacity.enabled',
+            true,
+        );
+
         config()->set(
             'worker-watch.capacity.expected',
             [
@@ -594,15 +611,31 @@ final class WorkerWatchManagerTest extends TestCase
 
         $this->store->put($worker);
 
-        $capacity = $this->manager->capacities()[0];
+        $capacities = $this->manager->capacities();
+
+        $this->assertCount(
+            1,
+            $capacities,
+        );
+
+        $capacity = $capacities[0];
 
         $this->assertSame(
             0,
             $capacity->actual,
         );
 
+        $this->assertSame(
+            1,
+            $capacity->missing(),
+        );
+
         $this->assertFalse(
             $capacity->isSatisfied()
+        );
+
+        $this->assertTrue(
+            $this->manager->hasCapacityFailure()
         );
     }
 

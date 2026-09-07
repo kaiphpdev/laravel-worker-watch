@@ -77,21 +77,20 @@ return [
     ),
 
     'capacity' => [
-
         'enabled' => env(
             'WORKER_WATCH_CAPACITY_ENABLED',
             true
         ),
-
+        'state_retention' => (int) env(
+            'WORKER_WATCH_CAPACITY_STATE_RETENTION',
+            86400
+        ),
         'expected' => [
-
             'redis:default' => (int) env(
                 'WORKER_WATCH_DEFAULT_WORKERS',
                 1
             ),
-
         ],
-
     ],
 
     /*

@@ -47,5 +47,10 @@ abstract class TestCase extends Orchestra
             'worker-watch.retention',
             3600,
         );
+
+        $app['config']->set(
+            'worker-watch.capacity.enabled',
+            false,
+        );
     }
 }

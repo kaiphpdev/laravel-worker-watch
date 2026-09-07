@@ -7,6 +7,7 @@ namespace Kaiphpdev\WorkerWatch\Commands;
 use Illuminate\Console\Command;
 use Kaiphpdev\WorkerWatch\Enums\WorkerStatus;
 use Kaiphpdev\WorkerWatch\WorkerCapacity;
+use Kaiphpdev\WorkerWatch\WorkerCapacityMonitor;
 use Kaiphpdev\WorkerWatch\WorkerSnapshot;
 use Kaiphpdev\WorkerWatch\WorkerWatchManager;
 
@@ -22,12 +23,15 @@ final class WorkerWatchStatusCommand extends Command
 
     public function __construct(
         private readonly WorkerWatchManager $manager,
+        private readonly WorkerCapacityMonitor $capacityMonitor,
     ) {
         parent::__construct();
     }
 
     public function handle(): int
     {
+        $this->capacityMonitor->check();
+
         $workers = $this->filteredWorkers();
 
         if ($this->option('json')) {

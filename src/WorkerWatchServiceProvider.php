@@ -68,6 +68,29 @@ final class WorkerWatchServiceProvider extends ServiceProvider
             )
         );
 
+        $this->app->singleton(
+            WorkerCapacityMonitor::class,
+            function ($app): WorkerCapacityMonitor {
+                /** @var CacheFactory $cache */
+                $cache = $app->make(CacheFactory::class);
+
+                $store = config('worker-watch.store');
+
+                $repository = $store !== null
+                    ? $cache->store((string) $store)
+                    : $cache->store();
+
+                return new WorkerCapacityMonitor(
+                    manager: $app->make(
+                        WorkerWatchManager::class
+                    ),
+                    cache: $repository,
+                    events: $app->make(
+                        Dispatcher::class
+                    ),
+                );
+            }
+        );
     }
 
     public function boot(): void
