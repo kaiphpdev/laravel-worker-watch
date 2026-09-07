@@ -1,6 +1,6 @@
 {
     "name": "kaiphpdev/laravel-worker-watch",
-    "description": "Production-ready Laravel queue worker health monitoring, heartbeat tracking, stalled-job detection and worker recovery monitoring.",
+    "description": "Production-ready Laravel queue worker health monitoring, heartbeat tracking, stalled-job detection, failure-rate monitoring and worker capacity checks.",
     "keywords": [
         "laravel",
         "queue",
