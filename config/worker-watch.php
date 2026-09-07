@@ -155,4 +155,33 @@ return [
 
     ],
 
+    'rolling_window' => [
+
+        'enabled' => env(
+            'WORKER_WATCH_ROLLING_FAILURE_ENABLED',
+            true
+        ),
+
+        'size' => (int) env(
+            'WORKER_WATCH_ROLLING_FAILURE_WINDOW',
+            50
+        ),
+
+        'minimum_jobs' => (int) env(
+            'WORKER_WATCH_ROLLING_FAILURE_MINIMUM_JOBS',
+            10
+        ),
+
+        'degraded_at' => (float) env(
+            'WORKER_WATCH_ROLLING_FAILURE_DEGRADED_AT',
+            20
+        ),
+
+        'critical_at' => (float) env(
+            'WORKER_WATCH_ROLLING_FAILURE_CRITICAL_AT',
+            40
+        ),
+
+    ],
+
 ];

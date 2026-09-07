@@ -98,6 +98,11 @@ final class WorkerWatchManager
             return null;
         }
 
+        $recentResults = $this->appendRecentResult(
+            worker: $worker,
+            successful: true,
+        );
+
         $updated = $this->copy(
             worker: $worker,
             status: WorkerStatus::Healthy,
@@ -105,6 +110,7 @@ final class WorkerWatchManager
             currentJob: null,
             jobStartedAt: null,
             jobsProcessed: ($worker->jobsProcessed ?? 0) + 1,
+            recentResults: $recentResults,
         );
 
         $this->store->put($updated);
@@ -119,6 +125,10 @@ final class WorkerWatchManager
         if ($worker === null) {
             return null;
         }
+        $recentResults = $this->appendRecentResult(
+            worker: $worker,
+            successful: false,
+        );
 
         $updated = $this->copy(
             worker: $worker,
@@ -127,6 +137,7 @@ final class WorkerWatchManager
             currentJob: null,
             jobStartedAt: null,
             jobsFailed: ($worker->jobsFailed ?? 0) + 1,
+            recentResults: $recentResults,
         );
 
         $this->store->put($updated);
@@ -219,36 +230,37 @@ final class WorkerWatchManager
 
         $runtime = $worker->jobRuntime($now);
 
-        if ($runtime === null) {
+        if ($runtime !== null) {
+            $longRunningAfter = (int) config(
+                'worker-watch.jobs.long_running_after',
+                300,
+            );
 
-            $failureStatus = $this->failureRateStatus($worker);
+            $criticalJobAfter = (int) config(
+                'worker-watch.jobs.critical_after',
+                900,
+            );
 
-            if ($failureStatus !== null) {
-                return $failureStatus;
+            if ($runtime >= $criticalJobAfter) {
+                return WorkerStatus::Critical;
             }
 
-            return WorkerStatus::Healthy;
+            if ($runtime >= $longRunningAfter) {
+                return WorkerStatus::Degraded;
+            }
         }
 
-        $longRunningAfter = (int) config(
-            'worker-watch.jobs.long_running_after',
-            300,
+        $recentFailureStatus = $this->recentFailureRateStatus(
+            $worker
         );
 
-        $criticalJobAfter = (int) config(
-            'worker-watch.jobs.critical_after',
-            900,
+        if ($recentFailureStatus !== null) {
+            return $recentFailureStatus;
+        }
+
+        $failureStatus = $this->failureRateStatus(
+            $worker
         );
-
-        if ($runtime >= $criticalJobAfter) {
-            return WorkerStatus::Critical;
-        }
-
-        if ($runtime >= $longRunningAfter) {
-            return WorkerStatus::Degraded;
-        }
-
-        $failureStatus = $this->failureRateStatus($worker);
 
         if ($failureStatus !== null) {
             return $failureStatus;
@@ -265,6 +277,7 @@ final class WorkerWatchManager
         int|false|null $jobStartedAt = false,
         ?int $jobsProcessed = null,
         ?int $jobsFailed = null,
+        ?array $recentResults = null,
     ): WorkerSnapshot {
         return new WorkerSnapshot(
             id: $worker->id,
@@ -282,6 +295,7 @@ final class WorkerWatchManager
                 : $jobStartedAt,
             jobsProcessed: $jobsProcessed ?? $worker->jobsProcessed,
             jobsFailed: $jobsFailed ?? $worker->jobsFailed,
+            recentResults: $recentResults ?? $worker->recentResults,
         );
     }
 
@@ -431,6 +445,80 @@ final class WorkerWatchManager
         $degradedAt = (float) config(
             'worker-watch.failure_rate.degraded_at',
             10,
+        );
+
+        if ($failureRate >= $criticalAt) {
+            return WorkerStatus::Critical;
+        }
+
+        if ($failureRate >= $degradedAt) {
+            return WorkerStatus::Degraded;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, bool>
+     */
+    private function appendRecentResult(
+        WorkerSnapshot $worker,
+        bool $successful,
+    ): array {
+        $results = $worker->recentResults;
+
+        $results[] = $successful;
+
+        $windowSize = max(
+            1,
+            (int) config(
+                'worker-watch.failure_rate.rolling_window.size',
+                50,
+            ),
+        );
+
+        if (count($results) > $windowSize) {
+            $results = array_slice(
+                $results,
+                -$windowSize,
+            );
+        }
+
+        return $results;
+    }
+
+    private function recentFailureRateStatus(
+        WorkerSnapshot $worker,
+    ): ?WorkerStatus {
+        if (! (bool) config(
+            'worker-watch.failure_rate.rolling_window.enabled',
+            true,
+        )) {
+            return null;
+        }
+
+        $minimumJobs = max(
+            1,
+            (int) config(
+                'worker-watch.failure_rate.rolling_window.minimum_jobs',
+                10,
+            ),
+        );
+
+        if ($worker->recentJobCount() < $minimumJobs) {
+            return null;
+        }
+
+        $failureRate = $worker->recentFailureRate();
+
+        $criticalAt = (float) config(
+            'worker-watch.failure_rate.rolling_window.critical_at',
+            40,
+        );
+
+        $degradedAt = (float) config(
+            'worker-watch.failure_rate.rolling_window.degraded_at',
+            20,
         );
 
         if ($failureRate >= $criticalAt) {

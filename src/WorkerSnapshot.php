@@ -8,6 +8,9 @@ use Kaiphpdev\WorkerWatch\Enums\WorkerStatus;
 
 final readonly class WorkerSnapshot
 {
+    /**
+     * @param  array<int, bool>  $recentResults
+     */
     public function __construct(
         public string $id,
         public string $hostname,
@@ -20,6 +23,7 @@ final readonly class WorkerSnapshot
         public ?int $jobStartedAt = null,
         public ?int $jobsProcessed = null,
         public ?int $jobsFailed = null,
+        public array $recentResults = [],
     ) {}
 
     public function isRunningJob(): bool
@@ -62,6 +66,10 @@ final readonly class WorkerSnapshot
             'jobs_failed' => $this->jobsFailed,
             'jobs_total' => $this->totalCompletedJobs(),
             'failure_rate' => $this->failureRate(),
+            'recent_results' => $this->recentResults,
+            'recent_jobs' => $this->recentJobCount(),
+            'recent_failures' => $this->recentFailureCount(),
+            'recent_failure_rate' => $this->recentFailureRate(),
         ];
     }
 
@@ -80,5 +88,31 @@ final readonly class WorkerSnapshot
         }
 
         return (($this->jobsFailed ?? 0) / $total) * 100;
+    }
+
+    public function recentJobCount(): int
+    {
+        return count($this->recentResults);
+    }
+
+    public function recentFailureCount(): int
+    {
+        return count(
+            array_filter(
+                $this->recentResults,
+                static fn (bool $successful): bool => ! $successful,
+            )
+        );
+    }
+
+    public function recentFailureRate(): float
+    {
+        $total = $this->recentJobCount();
+
+        if ($total === 0) {
+            return 0.0;
+        }
+
+        return ($this->recentFailureCount() / $total) * 100;
     }
 }

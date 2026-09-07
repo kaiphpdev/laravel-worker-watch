@@ -54,6 +54,7 @@ final class WorkerWatchStatusCommand extends Command
                 'Processed',
                 'Failed',
                 'Failure Rate',
+                'Recent Fail %',
             ],
             array_map(
                 fn (WorkerSnapshot $worker): array => [
@@ -73,6 +74,10 @@ final class WorkerWatchStatusCommand extends Command
                     sprintf(
                         '%.2f%%',
                         $worker->failureRate(),
+                    ),
+                    sprintf(
+                        '%.2f%%',
+                        $worker->recentFailureRate(),
                     ),
                 ],
                 $workers,

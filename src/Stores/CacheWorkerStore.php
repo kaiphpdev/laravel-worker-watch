@@ -154,6 +154,15 @@ final class CacheWorkerStore implements WorkerStore
             jobsFailed: isset($data['jobs_failed'])
                 ? (int) $data['jobs_failed']
                 : null,
+            recentResults: isset($data['recent_results'])
+                && is_array($data['recent_results'])
+                    ? array_values(
+                        array_map(
+                            static fn (mixed $result): bool => (bool) $result,
+                            $data['recent_results'],
+                        )
+                    )
+                    : [],
         );
     }
 }

@@ -753,4 +753,106 @@ final class WorkerWatchManagerTest extends TestCase
             $evaluated->status,
         );
     }
+
+    public function test_recent_failures_can_mark_worker_critical_even_when_lifetime_rate_is_low(): void
+    {
+        config()->set(
+            'worker-watch.failure_rate.rolling_window.enabled',
+            true,
+        );
+
+        config()->set(
+            'worker-watch.failure_rate.rolling_window.minimum_jobs',
+            10,
+        );
+
+        config()->set(
+            'worker-watch.failure_rate.rolling_window.degraded_at',
+            20,
+        );
+
+        config()->set(
+            'worker-watch.failure_rate.rolling_window.critical_at',
+            40,
+        );
+
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1990,
+            jobsProcessed: 980,
+            jobsFailed: 20,
+            recentResults: [
+                true,
+                false,
+                true,
+                false,
+                true,
+                false,
+                true,
+                false,
+                true,
+                false,
+            ],
+        );
+
+        $this->store->put($worker);
+
+        $evaluated = $this->manager->evaluateHealth(
+            worker: $worker,
+            now: 2000,
+        );
+
+        $this->assertSame(
+            2.0,
+            $worker->failureRate(),
+        );
+
+        $this->assertSame(
+            50.0,
+            $worker->recentFailureRate(),
+        );
+
+        $this->assertSame(
+            WorkerStatus::Critical,
+            $evaluated->status,
+        );
+    }
+
+    public function test_recent_job_results_are_limited_to_configured_window(): void
+    {
+        config()->set(
+            'worker-watch.failure_rate.rolling_window.size',
+            3,
+        );
+
+        $worker = $this->startWorker();
+
+        $this->manager->jobProcessed($worker->id);
+        $this->manager->jobProcessed($worker->id);
+        $this->manager->jobProcessed($worker->id);
+        $this->manager->jobFailed($worker->id);
+
+        $stored = $this->store->get($worker->id);
+
+        $this->assertNotNull($stored);
+
+        $this->assertSame(
+            [
+                true,
+                true,
+                false,
+            ],
+            $stored->recentResults,
+        );
+
+        $this->assertCount(
+            3,
+            $stored->recentResults,
+        );
+    }
 }

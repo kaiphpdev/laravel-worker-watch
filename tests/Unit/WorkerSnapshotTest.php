@@ -135,4 +135,40 @@ final class WorkerSnapshotTest extends TestCase
             $worker->failureRate(),
         );
     }
+
+    public function test_it_calculates_recent_failure_rate(): void
+    {
+        $worker = new WorkerSnapshot(
+            id: 'server:1:redis:default',
+            hostname: 'server',
+            processId: 1,
+            connection: 'redis',
+            queue: 'default',
+            status: WorkerStatus::Healthy,
+            lastHeartbeatAt: 1000,
+            jobsProcessed: 100,
+            jobsFailed: 5,
+            recentResults: [
+                true,
+                true,
+                false,
+                false,
+            ],
+        );
+
+        $this->assertSame(
+            50.0,
+            $worker->recentFailureRate(),
+        );
+
+        $this->assertSame(
+            4,
+            $worker->recentJobCount(),
+        );
+
+        $this->assertSame(
+            2,
+            $worker->recentFailureCount(),
+        );
+    }
 }
