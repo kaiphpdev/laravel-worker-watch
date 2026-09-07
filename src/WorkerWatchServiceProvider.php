@@ -14,6 +14,7 @@ use Illuminate\Queue\Events\WorkerStarting;
 use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Kaiphpdev\WorkerWatch\Commands\WorkerWatchPruneCommand;
 use Kaiphpdev\WorkerWatch\Commands\WorkerWatchStatusCommand;
 use Kaiphpdev\WorkerWatch\Contracts\WorkerStore;
 use Kaiphpdev\WorkerWatch\Listeners\QueueWorkerListener;
@@ -80,6 +81,7 @@ final class WorkerWatchServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 WorkerWatchStatusCommand::class,
+                WorkerWatchPruneCommand::class,
             ]);
 
             $this->publishes([
