@@ -19,26 +19,32 @@ jobs:
           - php: '8.2'
             laravel: '11.*'
             testbench: '^9.0'
+            allow_insecure: true
 
           - php: '8.3'
             laravel: '11.*'
             testbench: '^9.0'
+            allow_insecure: true
 
           - php: '8.4'
             laravel: '11.*'
             testbench: '^9.0'
+            allow_insecure: true
 
           - php: '8.2'
             laravel: '12.*'
             testbench: '^10.0'
+            allow_insecure: false
 
           - php: '8.3'
             laravel: '12.*'
             testbench: '^10.0'
+            allow_insecure: false
 
           - php: '8.4'
             laravel: '12.*'
             testbench: '^10.0'
+            allow_insecure: false
 
     name: PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }}
 
@@ -56,7 +62,10 @@ jobs:
       - name: Validate Composer configuration
         run: composer validate --strict
 
-      - name: Install matrix dependencies
+      - name: Install Laravel 11 compatibility dependencies
+        if: matrix.allow_insecure == true
+        env:
+          COMPOSER_NO_BLOCKING: 1
         run: |
           composer require \
             "laravel/framework:${{ matrix.laravel }}" \
@@ -67,7 +76,23 @@ jobs:
           composer update \
             --prefer-dist \
             --no-interaction \
-            --no-progress
+            --no-progress \
+            --with-all-dependencies
+
+      - name: Install supported Laravel dependencies
+        if: matrix.allow_insecure == false
+        run: |
+          composer require \
+            "laravel/framework:${{ matrix.laravel }}" \
+            "orchestra/testbench:${{ matrix.testbench }}" \
+            --dev \
+            --no-update
+
+          composer update \
+            --prefer-dist \
+            --no-interaction \
+            --no-progress \
+            --with-all-dependencies
 
       - name: Check code style
         run: composer format-check
